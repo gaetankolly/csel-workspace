@@ -2,3 +2,7 @@ images
 buildroot-images
 src/*/app
 .obj
+
+boot-scripts/boot_cifs.cmd
+boot-scripts/boot.cifs
+boot-scripts/Makefile
