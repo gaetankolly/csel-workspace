@@ -1,0 +1,8 @@
+CVER     := aarch64-buildroot-linux-gnu-
+KVER     := 5.15.21
+CPU      := arm64
+
+KDIR     := /buildroot/output/build/linux-$(KVER)/
+TOOLS    := /buildroot/output/host/usr/bin/$(CVER)
+MODPATH  := /rootfs
+#MODPATH := /buildroot/output/target

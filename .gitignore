@@ -6,3 +6,7 @@ src/*/app
 boot-scripts/boot_cifs.cmd
 boot-scripts/boot.cifs
 boot-scripts/Makefile
+*.cmd
+*.mod
+*.o
+*.order
