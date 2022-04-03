@@ -7,6 +7,7 @@
 
     "settings": {},
     "extensions": [
-        "ms-vscode.cpptools"
-    ]
+		"ms-vscode.cpptools",
+		"folke.vscode-monorepo-workspace"
+	]
 }

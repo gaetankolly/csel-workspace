@@ -28,5 +28,10 @@
 			"path": "../src/tracing"
 		}
 	],
-	"settings": {}
+	"settings": {},
+	"extensions": {
+		"recommendations": [
+			"folke.vscode-monorepo-workspace"
+		]
+	}
 }
