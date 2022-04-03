@@ -13,7 +13,7 @@ CFLAGS_skeleton.o := -DDEBUG
 
 # Part executed when called from standard make in module source directory:
 else
-include ../kernel_settings
+include ../../kernel_settings
 PWD := $(shell pwd)
 
 all:
