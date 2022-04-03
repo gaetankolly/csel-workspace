@@ -28,17 +28,14 @@ struct element
 static LIST_HEAD(list); // head of the list, global variable
 
 // allocate on element and add it at the tail of the list
-void alloc_element(int id)
-{
-  struct element *newElement;
-  newElement = kzalloc(sizeof(*newElement), GFP_KERNEL); // create a new element on heap
-  pr_debug("ALLOC:  element %d created\n", id);
-  if (newElement != NULL)
-  {
-    newElement->element_id = id;
-    strncpy(newElement->text, elementText, ELEMENT_STRING_SIZE - 1);
-    list_add_tail(&newElement->node, &list); // add element at the end of the list
-  }
+void alloc_element (int id) {
+	struct element* newElement
+	newElement = kzalloc(sizeof(*newElement), GFP_KERNEL); // create a new element on heap, GFP_KERNEL= allocation standard
+	if (newElement != NULL){
+		newElement->element_id=id;
+		strncpy(newElement->text, elementText, ELEMENT_STRING_SIZE-1);
+		list_add_tail(&newElement->node, &list); // add element at the end of the list
+	}
 }
 
 static int __init skeleton_init(void)
@@ -61,7 +58,9 @@ static void __exit skeleton_exit(void)
 
   // dealloc list
 
-  pr_info("EXIT:  Linux module skeleton unloaded\n");
+	// dealloc list
+
+	pr_info ("Linux module skeleton unloaded\n");
 }
 
 module_init(skeleton_init);

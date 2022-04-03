@@ -7,7 +7,7 @@
          "label": "gdbserver",
          "type": "shell",
          "command": [
-             "ssh -t root@192.168.0.14 '/usr/bin/gdbserver :1234", 
+             "ssh -t root@192.168.1.14 '/usr/bin/gdbserver :1234", 
              "${workspaceFolder}/app 2'"]
        }
     ]

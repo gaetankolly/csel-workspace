@@ -14,7 +14,7 @@
          "cwd": "${workspaceFolder}",
          "externalConsole": false,
          "MIMode": "gdb",
-         "miDebuggerServerAddress": "192.168.0.14:1234",
+         "miDebuggerServerAddress": "192.168.1.14:1234",
          "miDebuggerPath": "/buildroot/output/host/bin/aarch64-linux-gdb"
        }
     ]
