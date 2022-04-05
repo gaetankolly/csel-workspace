@@ -28,7 +28,11 @@
 			"path": "../src/tracing"
 		}
 	],
-	"settings": {},
+	"settings": {
+		"files.associations": {
+			"stdint.h": "c"
+		}
+	},
 	"extensions": {
 		"recommendations": [
 			"folke.vscode-monorepo-workspace"

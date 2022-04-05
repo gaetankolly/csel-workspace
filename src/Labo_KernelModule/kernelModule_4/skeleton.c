@@ -20,22 +20,41 @@ module_param(nbElements, int, 0);
 #define ELEMENT_STRING_SIZE (100)
 struct element
 {
-  char text[ELEMENT_STRING_SIZE];
-  int element_id;
-  struct list_head node;
+  char text[ELEMENT_STRING_SIZE]; //param
+  int element_id;                 // param
+  struct list_head node;          // element liste_head which allow to move in the chained list
 };
 
 static LIST_HEAD(list); // head of the list, global variable
 
 // allocate on element and add it at the tail of the list
 void alloc_element (int id) {
-	struct element* newElement
+	struct element* newElement;
 	newElement = kzalloc(sizeof(*newElement), GFP_KERNEL); // create a new element on heap, GFP_KERNEL= allocation standard
 	if (newElement != NULL){
 		newElement->element_id=id;
 		strncpy(newElement->text, elementText, ELEMENT_STRING_SIZE-1);
 		list_add_tail(&newElement->node, &list); // add element at the end of the list
 	}
+}
+
+// printlist
+void printList(void) {
+  struct element* ele;
+  list_for_each_entry(ele, &list, node) {
+      pr_info("Text= %s, ID= %d\n",ele->text, ele->element_id);
+  }
+}
+
+// deallocate element of the list
+void removeCompleteList(void) {
+  struct element* ele;
+	while (!list_empty (&list)) {
+    ele=list_last_entry(&list, struct element, node);
+    pr_debug("Delete: %d\n", ele->element_id);
+		list_del (&ele->node);
+		kfree (ele);
+	} 
 }
 
 static int __init skeleton_init(void)
@@ -54,12 +73,11 @@ static int __init skeleton_init(void)
 
 static void __exit skeleton_exit(void)
 {
+  pr_debug("INIT:    text: %s\t  elements: %d\n", elementText, nbElements);
   // display list
-
-  // dealloc list
-
+  printList ();
 	// dealloc list
-
+  removeCompleteList();
 	pr_info ("Linux module skeleton unloaded\n");
 }
 
