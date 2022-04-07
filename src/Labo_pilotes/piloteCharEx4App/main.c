@@ -35,8 +35,8 @@ static const char *filler =
 /* User code -----------------------------------------------------------------*/
   int main(int argc, char *argv[]){
 
-    int fdw = NULL; // file pointer for writing
-    int fdr = NULL; //file pointer for reading
+    int fdw = 0; // file pointer for writing
+    int fdr = 0; //file pointer for reading
     int s;
     int isNotEmpty = 1;
 
@@ -46,7 +46,8 @@ static const char *filler =
     }
 
     // writing part of the code
-    if (fdw = open(argv[1], O_RDWR)){
+    fdw = open(argv[1], O_RDWR);
+    if (fdw==-1){
       printf("Failed opening file %s for writing\n", argv[1]);
       return -1;
     }
@@ -56,11 +57,12 @@ static const char *filler =
 
     do{
       s = write(fdw, filler, strlen(filler));
-    } while (s >= 0);
+    } while (s > 0);
     close(fdw);
 
     // reading part of the code
-    if (fdr = open(argv[1], O_RDONLY)){
+    fdr = open(argv[1], O_RDONLY);
+    if (fdr==-1){
       printf("Failed opening file %s for reading\n", argv[1]);
       return -1;
     }
