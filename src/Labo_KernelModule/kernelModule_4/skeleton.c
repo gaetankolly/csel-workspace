@@ -60,8 +60,8 @@ void removeCompleteList(void) {
 static int __init skeleton_init(void)
 {
   int i;
-  pr_info("INIT:  Linux module skeleton loaded\n");
-  pr_debug("INIT:    text: %s\t  elements: %d\n", elementText, nbElements);
+  pr_info("Linux module 4 skeleton loaded\n");
+  pr_debug("text: %s\t  elements: %d\n", elementText, nbElements);
 
   for (i = 0; i < nbElements; i++)
   {
@@ -73,12 +73,12 @@ static int __init skeleton_init(void)
 
 static void __exit skeleton_exit(void)
 {
-  pr_debug("INIT:    text: %s\t  elements: %d\n", elementText, nbElements);
+  pr_debug("text: %s\t  elements: %d\n", elementText, nbElements);
   // display list
   printList ();
 	// dealloc list
   removeCompleteList();
-	pr_info ("Linux module skeleton unloaded\n");
+  pr_info("Linux module 4 skeleton unloaded\n");
 }
 
 module_init(skeleton_init);

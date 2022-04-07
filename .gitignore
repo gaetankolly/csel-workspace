@@ -12,3 +12,5 @@ boot-scripts/Makefile
 *.order
 /src/Labo_KernelModule/kernelModule_2/mymodule.mod.c
 /src/Labo_KernelModule/kernelModule_2/Module.symvers
+/src/Labo_KernelModule/kernelModule_7/mymodule.mod.c
+/src/Labo_KernelModule/kernelModule_7/Module.symvers

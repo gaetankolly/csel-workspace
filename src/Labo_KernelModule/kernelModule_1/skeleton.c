@@ -7,12 +7,12 @@
 // needed for debugging
 static int __init skeleton_init(void)
 {
-    pr_info ("Linux module skeleton loaded\n");
+    pr_info ("Linux module 1 skeleton loaded\n");
     return 0;
 }
 static void __exit skeleton_exit(void)
 {
-    pr_info ("Linux module skeleton unloaded\n");
+    pr_info ("Linux module 1 skeleton unloaded\n");
 }
 module_init (skeleton_init);
 module_exit (skeleton_exit);
