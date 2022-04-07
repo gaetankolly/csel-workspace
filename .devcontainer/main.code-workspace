@@ -30,7 +30,8 @@
 	],
 	"settings": {
 		"files.associations": {
-			"stdint.h": "c"
+			"stdint.h": "c",
+			"module.h": "c"
 		}
 	},
 	"extensions": {

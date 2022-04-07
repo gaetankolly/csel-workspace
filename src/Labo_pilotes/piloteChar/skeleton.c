@@ -9,9 +9,63 @@
 
 #define BUFFER_SZ 10000
 
-static char s_buffer[BUFFER_SZ];
-static dev_t skeleton_dev; 
-static struct cdev skeleton_cdev;
+static char buffer[BUFFER_SZ];      // memory representing the file
+static dev_t skeleton_dev;          // contain minor and major number, register with alloc_chrdev_region
+static struct cdev skeleton_cdev;   // representation of the driver into the kernel, 
+
+static ssize_t skeleton_read(struct file* f,  		// only used to read file attribut
+                             char __user* buf,		// buffer from user where to write
+                             size_t count,			// number of byte required
+                             loff_t* off)			// position in the file, so in buffer
+{
+
+    ssize_t remaining = BUFFER_SZ - (ssize_t)(*off); // remaining size
+    char* ptr         = buffer + *off;               // position where to read
+    if (count > remaining) count = remaining;        // security against buffer over read
+    *off += count;                                   // update offset for the user
+    // copy required number of bytes
+    if (copy_to_user(buf, ptr, count) != 0) count = -EFAULT;
+
+    pr_info("skeleton: read operation... read=%ld\n", count);
+
+    return count;
+}
+
+static ssize_t skeleton_write(struct file* f,           // only used to read file attribut
+                              const char __user* buf,   // buffer from user where to read
+                              size_t count,             // number of byte required
+                              loff_t* off)              // position in the file, so in buffer
+{
+
+    ssize_t remaining = BUFFER_SZ - (ssize_t)(*off);    // remaining size in the buffer
+
+    pr_info("skeleton: at%ld\n", (unsigned long)(*off));
+
+    // check the space remaining
+    if (count >= remaining){
+        count = remaining-1;
+    }
+    // store additional bytes into internal buffer
+    if (count <= 0) {
+        count =0;
+    }
+    else{
+		int i;
+        char* ptr = buffer + *off; // at the position required
+        *off += count;             // update offset in case of append for the user
+        ptr[count] = 0;  // make sure string is null terminated
+        if (copy_from_user(ptr, buf, count)) count = -EFAULT;
+
+		for(i=0; i<count;i++){
+			if(ptr[i]>=97 && ptr[i]<=122)
+                ptr[i]-='a'-'A';
+		}	
+    }
+    pr_info("skeleton: write operation... written=%ld\n", count);
+    
+
+    return count;
+}
 
 static int skeleton_open(struct inode* i, struct file* f)
 {
@@ -22,7 +76,6 @@ static int skeleton_open(struct inode* i, struct file* f)
     if ((f->f_flags & (O_APPEND)) != 0) {
         pr_info("skeleton : opened for appending...\n");
     }
-
     if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) != 0) {
         pr_info("skeleton : opened for reading & writing...\n");
     } else if ((f->f_mode & FMODE_READ) != 0) {
@@ -30,7 +83,6 @@ static int skeleton_open(struct inode* i, struct file* f)
     } else if ((f->f_mode & FMODE_WRITE) != 0) {
         pr_info("skeleton : opened for writing...\n");
     }
-
     return 0;
 }
 
@@ -41,56 +93,6 @@ static int skeleton_release(struct inode* i, struct file* f)
     return 0;
 }
 
-static ssize_t skeleton_read(struct file* f,  		// only used to read file attribut
-                             char __user* buf,		// buffer from user where to write
-                             size_t count,			// number of byte required
-                             loff_t* off)			// 
-{
-    // compute remaining bytes to copy, update count and pointers
-    ssize_t remaining = BUFFER_SZ - (ssize_t)(*off);
-    char* ptr         = s_buffer + *off;
-    if (count > remaining) count = remaining;
-    *off += count;
-
-    // copy required number of bytes
-    if (copy_to_user(buf, ptr, count) != 0) count = -EFAULT;
-
-    pr_info("skeleton: read operation... read=%ld\n", count);
-
-    return count;
-}
-
-static ssize_t skeleton_write(struct file* f,
-                              const char __user* buf,
-                              size_t count,
-                              loff_t* off)
-{
-    // compute remaining space in buffer and update pointers
-    ssize_t remaining = BUFFER_SZ - (ssize_t)(*off);
-
-    pr_info("skeleton: at%ld\n", (unsigned long)(*off));
-
-    // check if still remaining space to store additional bytes
-    if (count >= remaining) count = -EIO;
-
-    // store additional bytes into internal buffer
-    if (count > 0) {
-		int i;
-        char* ptr = s_buffer + *off;
-        *off += count;
-        ptr[count] = 0;  // make sure string is null terminated
-        if (copy_from_user(ptr, buf, count)) count = -EFAULT;
-
-		for(i=0; i<count;i++){
-			ptr[i]+=1;
-		}
-		
-    }
-
-    pr_info("skeleton: write operation... written=%ld\n", count);
-
-    return count;
-}
 
 static struct file_operations skeleton_fops = {
     .owner   = THIS_MODULE,
@@ -102,10 +104,9 @@ static struct file_operations skeleton_fops = {
 
 static int __init skeleton_init(void)
 {
-	// skeleton_dev = repprésentation du driver en général, contient major et minor number 
-	// skeleton_cdev = struct cdev, représentation du driver orienté caractère dans le noyau 
-	
-	// alloc_chrdev_region permettant d’allouer dynamiquement les numéros de pilote
+	// skeleton_dev = de type dev_t containt the major and minor number (32bits) which represent the device driver
+	// skeleton_cdev = struct cdev 
+	// alloc_chrdev_region allocate dymicaly the minor and major number in skeleton_dev
 	//int alloc_chrdev_region (dev_t* dev, unsinged baseminor, unsinged count, const char* name);
     int status = alloc_chrdev_region(&skeleton_dev, 0, 1, "mymodule");
     if (status == 0) {
@@ -130,6 +131,6 @@ static void __exit skeleton_exit(void)
 module_init(skeleton_init);
 module_exit(skeleton_exit);
 
-MODULE_AUTHOR("Daniel Gachet <daniel.gachet@hefr.ch>");
+MODULE_AUTHOR("Andrea Enrile, Gaëtan Kolly");
 MODULE_DESCRIPTION("Module skeleton");
 MODULE_LICENSE("GPL");

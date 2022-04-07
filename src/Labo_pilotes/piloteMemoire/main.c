@@ -30,8 +30,8 @@ int main(){
                 0x1000,              //taille de la zone à placer en mémoire virtuelle
                 PROT_READ,          // droits d’accès à la mémoire: read, write, execute
                 MAP_SHARED,         // visibilité de la page pour d’autres processus: shared, private
-                fd,                     // descripteur du fichier correspondant au pilote
-                PAGE_ADDRESS               // offset des registres en mémoire
+                fd,                 // descripteur du fichier correspondant au pilote
+                PAGE_ADDRESS        // offset des registres en mémoire
                 );
 
     if(memMap ==NULL){
