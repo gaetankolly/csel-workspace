@@ -45,6 +45,8 @@ static int __init skeleton_init(void)
 {
 	int status = 0;
 
+	pr_info("Linux module 8 skeleton loaded\n");
+
 	// install k1
 	if (status == 0) status = gpio_request (K1, "k1");
 	if (status == 0)
@@ -63,8 +65,6 @@ static int __init skeleton_init(void)
 		status = request_irq(gpio_to_irq(K3), gpio_isr,
 			IRQF_TRIGGER_FALLING | IRQF_SHARED, K3_name, &data_k3);
 
-	pr_info ("Linux module skeleton loaded\n");
-
 	return status;
 }
 
@@ -79,7 +79,7 @@ static void __exit skeleton_exit(void)
 	free_irq(gpio_to_irq(K3), &data_k3);
   gpio_free(K3);
 
-	pr_info ("Linux module skeleton unloaded\n");
+	pr_info ("Linux module 8 skeleton unloaded\n");
 }
 
 module_init (skeleton_init);

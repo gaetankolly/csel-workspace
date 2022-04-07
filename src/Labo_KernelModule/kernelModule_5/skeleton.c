@@ -13,7 +13,15 @@
 #include <linux/ioport.h> /* needed for memory region handling */
 #include <linux/io.h>			/* needed for mmio handling */
 
-static struct resource *res[1] = {[0] = 0,};
+#define ID_START (0x01C14200)
+#define TEMP_START (0x01C25080)
+#define MAC_START (0x01C30050)
+
+#define MY_START_ADDR(addr, pageSize) (addr - (addr % pageSize))
+
+#define PAGE_SIZE (0x1000)
+
+static struct resource *res = 0;
 
 static int __init skeleton_init(void)
 {
@@ -28,16 +36,16 @@ static int __init skeleton_init(void)
 	};
 	long temp = 0;
 
-	pr_info ("INIT:  Linux module 05 skeleton loaded\n");
+	pr_info ("Linux module 5 skeleton loaded\n");
 
-	res[0] = request_mem_region(0x01c14000, 0x1000, "allwiner h5 sid");
+	res = request_mem_region(MY_START_ADDR(ID_START, PAGE_SIZE), PAGE_SIZE, "ChipID");
 	/* From solution */
-	if ((res[0] == 0)) // || (res[1] == 0) ||(res[2] == 0))
-		pr_info("Error while reserving memory region... [0]=%d, [1]=%d, [2]=%d\n", res[0] == 0, res[1] == 0, res[2] == 0);
+	if ((res == 0))
+		pr_info("Error while reserving memory region...\n");
 
-	myRegisters[0] = ioremap(0x01c14000, 0x1000);
-	myRegisters[1] = ioremap(0x01C25000, 0x1000);
-	myRegisters[2] = ioremap(0x01C30000, 0x1000);
+	myRegisters[0] = ioremap(MY_START_ADDR(ID_START, PAGE_SIZE), PAGE_SIZE);
+	myRegisters[1] = ioremap(MY_START_ADDR(TEMP_START, PAGE_SIZE), PAGE_SIZE);
+	myRegisters[2] = ioremap(MY_START_ADDR(MAC_START, PAGE_SIZE), PAGE_SIZE);
 
 	/* From solution */
 	if ((myRegisters[0] == 0) || (myRegisters[1] == 0) || (myRegisters[2] == 0))
@@ -76,10 +84,10 @@ static int __init skeleton_init(void)
 
 static void __exit skeleton_exit(void)
 {
-	if (res[0] != 0)
-		release_mem_region(0x01c14000, 0x1000);
+	if (res != 0)
+		release_mem_region(MY_START_ADDR(ID_START, PAGE_SIZE), PAGE_SIZE);
 
-	pr_info("EXIT:  Linux module skeleton unloaded\n");
+	pr_info("Linux module 5 skeleton unloaded\n");
 }
 
 module_init (skeleton_init);
