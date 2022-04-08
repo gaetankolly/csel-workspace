@@ -127,6 +127,13 @@ static struct file_operations skeleton_fops = {
     .release = skeleton_release,
 };
 
+struct miscdevice my_misc_device = {
+    .minor = MISC_DYNAMIC_MINOR,
+    .fops = &skeleton_fops,
+    .name = "mymodule",
+    .mode = 0664,
+};
+
 static int __init skeleton_init(void)
 {
 	// skeleton_dev = de type dev_t containt the major and minor number (32bits) which represent the device driver
@@ -145,6 +152,7 @@ static int __init skeleton_init(void)
     sysfs_device = device_create(sysfs_class, NULL, skeleton_dev, NULL, "my_sysfs_device");
     if (status == 0) status = device_create_file(sysfs_device, &dev_attr_buffer);
 
+    status = misc_register(&my_misc_device);
 
     pr_info("Linux module skeleton loaded\n");
     return 0;
@@ -157,6 +165,8 @@ static void __exit skeleton_exit(void)
     class_destroy(sysfs_class); 
     cdev_del(&skeleton_cdev);
     unregister_chrdev_region(skeleton_dev, 1);
+
+    misc_deregister(&my_misc_device);
 
     pr_info("Linux module skeleton unloaded\n");
 }
