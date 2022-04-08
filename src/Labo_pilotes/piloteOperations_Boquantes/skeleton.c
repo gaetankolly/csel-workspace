@@ -22,15 +22,25 @@ static char* K1_name="Button_k1";
 static char* K2_name="Button_k2";
 static char* K3_name="Button_k3";
 
+unsigned int irq_gpio[3];
+
 // queue variables
 DECLARE_WAIT_QUEUE_HEAD(myQueue);
 static atomic_t request_can_be_processed;
 
 irqreturn_t gpio_isr(int irq, void* handle)
 {
+	if(irq == irq_gpio[0])
+		pr_info("IRQ by %s\n", K1_name);
+	else if (irq == irq_gpio[1])
+		pr_info("IRQ by %s\n", K2_name);
+	else if (irq == irq_gpio[2])
+		pr_info("IRQ by %s\n", K3_name);
+	else
+		pr_info("IRQ unknown\n");
+
 	atomic_set(&request_can_be_processed, 1);
 	wake_up_interruptible(&myQueue);
-	pr_info("IRQ unknown\n");
   
 	return IRQ_HANDLED;
 }
@@ -79,19 +89,23 @@ static int __init skeleton_init(void)
 
 	status = misc_register(&my_misc_device);
 
+	irq_gpio[0] = gpio_to_irq(K1);
+	irq_gpio[1] = gpio_to_irq(K2);
+	irq_gpio[2] = gpio_to_irq(K3);
+
 	// install k1
 	if (status == 0)
 		status = devm_request_irq(my_misc_device.this_device,
-															gpio_to_irq(K1),
+															irq_gpio[0],
 															gpio_isr,
-										 					IRQF_TRIGGER_FALLING | IRQF_SHARED,
+															IRQF_TRIGGER_FALLING | IRQF_SHARED,
 															K1_name,
 															K1_name);
 
 	// install k2
 	if (status == 0)
 		status = devm_request_irq(my_misc_device.this_device,
-															gpio_to_irq(K2),
+															irq_gpio[1],
 															gpio_isr,
 															IRQF_TRIGGER_FALLING | IRQF_SHARED,
 															K2_name,
@@ -100,7 +114,7 @@ static int __init skeleton_init(void)
 	// install k3
 	if (status == 0)
 		status = devm_request_irq(my_misc_device.this_device,
-															gpio_to_irq(K3),
+															irq_gpio[2],
 															gpio_isr,
 															IRQF_TRIGGER_FALLING | IRQF_SHARED,
 															K3_name,
