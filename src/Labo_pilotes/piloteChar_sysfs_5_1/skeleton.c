@@ -7,6 +7,7 @@
 #include <linux/moduleparam.h> /* needed for module parameters */
 #include <linux/uaccess.h>     /* needed to copy data to/from user */
 #include <linux/string.h>
+#include <linux/miscdevice.h>
 
 #define BUFFER_SZ 10000
 
