@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <sys/timerfd.h>
 
 /*
  * status led - gpioa.10 --> gpio10
@@ -45,7 +46,12 @@
 #define K1 "0"
 #define K2 "2"
 #define K3 "3"
+#define NB_EPOLL_EVENT 4
+#define BUTTON_STEP 50000000 //ns
 
+/*
+ * init led 10, return fd /value
+ */
 static int open_led()
 {
   // unexport pin out of sysfs (reinitialization)
@@ -68,6 +74,9 @@ static int open_led()
   return f;
 }
 
+/*
+ * init buttonNb, return fd /value
+ */
 static int open_button(char* buttonNb)
 {
   char path[50]={0};
@@ -106,17 +115,30 @@ static int open_button(char* buttonNb)
   return f;
 }
 
+void setTime_ns(long time_ns,struct timespec* p_time_val){
+  p_time_val->tv_sec=(long) (time_ns/1000000000);
+  p_time_val->tv_nsec=time_ns%1000000000;
+}
+
+void setDutyCycle(long period,int duty,long* p1, long* p2){
+  // compute duty period...
+  *p1 = period / 100 * duty;
+  *p2 = period - *p1;
+}
+
 int main(int argc, char *argv[])
 {
-  long duty = 2;      // %
-  long period = 1000; // ms
+  
+  long duty = 50;      // %
+  long period = 2000; // ms
   if (argc >= 2)
     period = atoi(argv[1]);
   period *= 1000000; // in ns
+  long periodModif=period;
+  long p1,p2;
+  setDutyCycle(periodModif,duty,&p1, &p2);
 
-  // compute duty period...
-  long p1 = period / 100 * duty;
-  long p2 = period - p1;
+  //long ms_interval= 500; //500ms
 
   int led = open_led();
   pwrite(led, "1", sizeof("1"), 0);
@@ -132,40 +154,90 @@ int main(int argc, char *argv[])
   if (epfd == -1)
     perror("ERROR");
   
-  struct epoll_event events_ctl[3];
+  struct epoll_event events_ctl_button[3];
   for(int i=0; i<3;i++){
-    events_ctl[i].events=EPOLLET;
-    events_ctl[i].data.fd=fd_k[i];
-    int ret = epoll_ctl(epfd,EPOLL_CTL_ADD,fd_k[i],&(events_ctl[i]));
+    events_ctl_button[i].events=EPOLLET;
+    events_ctl_button[i].data.fd=fd_k[i]; //to read after
+    int ret = epoll_ctl(epfd,EPOLL_CTL_ADD,fd_k[i],&(events_ctl_button[i]));
     if (ret ==-1)
       perror("ERROR");
   }
   
   // Init timer
-  struct timespec t1;
-  clock_gettime(CLOCK_MONOTONIC, &t1);
+  //struct timespec t1;
+  //clock_gettime(CLOCK_MONOTONIC, &t1);
+  int timerfd = timerfd_create(CLOCK_MONOTONIC, 0); 
+  struct itimerspec new_value;
+  setTime_ns(p1,&new_value.it_value);
+  //setTime_ns(1000000000,&new_value.it_interval); // doesnt work... why?
+  int ret=timerfd_settime(timerfd, 0, &new_value, NULL);
+  if (ret ==-1)
+      perror("ERROR");
 
-  int k = 0;
+  // add to epoll event
+  struct epoll_event events_ctl_timer;
+  events_ctl_timer.events=EPOLLIN | EPOLLET;
+  events_ctl_timer.data.fd=timerfd; //to read after
+  ret = epoll_ctl(epfd,EPOLL_CTL_ADD,timerfd,&events_ctl_timer);
+  if (ret ==-1)
+      perror("ERROR");
+  int toggle=0;
+
+  //int k = 0;
   while (1)
   {
-    struct timespec t2;
+    /*struct timespec t2;
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
     long delta =
         (t2.tv_sec - t1.tv_sec) * 1000000000 + (t2.tv_nsec - t1.tv_nsec);
-
-    struct epoll_event events[3];
-    int nr = epoll_wait(epfd, events, 3, -1);
+    */
+    struct epoll_event events[NB_EPOLL_EVENT];
+    int nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1);
     if (nr == -1)
       perror("ERROR");
     for (int i=0; i<nr; i++) {
-      printf ("event=%d on fd=%d\n", events[i].events, events[i].data.fd);
+      //printf ("event=%d on fd=%d\n", events[i].events, events[i].data.fd);
+      // manage buttons
       for (int j=0; j<3;j++){
-        if (events[i].data.fd==fd_k[j])
-          printf("Button: %d\n",j+1);
+        if (events[i].data.fd==fd_k[j]){
+          //printf("Button: %d\n",j+1);
+          if(j==0){
+            periodModif+=BUTTON_STEP;
+          }
+          else if(j==1){
+            periodModif=period;
+          }
+          else if(j==2){
+            periodModif-=BUTTON_STEP;
+            if (periodModif<BUTTON_STEP){
+              periodModif=BUTTON_STEP;
+            }
+          }
+          setDutyCycle(periodModif,duty,&p1, &p2);
+          printf("Period= %fms\n",(double)periodModif/1000000);
+        }
+          
+      }
+      // manage timer
+      if (events[i].data.fd==timerfd){
+        if (toggle){
+          pwrite(led, "1", sizeof("1"), 0);
+          setTime_ns(p1,&new_value.it_value);
+          timerfd_settime(timerfd, 0, &new_value, NULL);
+        }
+          
+        else{
+          pwrite(led, "0", sizeof("0"), 0);
+          setTime_ns(p2,&new_value.it_value);
+          timerfd_settime(timerfd, 0, &new_value, NULL);
+        }
+          
+        toggle=!toggle;
       }
     }
 
+    /*
     int toggle = ((k == 0) && (delta >= p1)) | ((k == 1) && (delta >= p2));
     if (toggle)
     {
@@ -187,6 +259,7 @@ int main(int argc, char *argv[])
       // printf("button3= %c\n",test);
       // wait events
     }
+    */
 
   }
 
