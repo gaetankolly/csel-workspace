@@ -103,7 +103,7 @@ static int open_button(char* buttonNb)
 
   // config event, rising edge
   sprintf(path,"%s%s/edge",GPIO_GPIO,buttonNb);
-  f = open(path, O_RDWR);
+  f = open(path, O_WRONLY);
   write(f, "rising", strlen("rising"));
   close(f);
   
