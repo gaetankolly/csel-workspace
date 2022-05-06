@@ -48,8 +48,8 @@
 #define K3 "3"
 #define NB_EPOLL_EVENT 4
 #define BUTTON_STEP 50000000 //ns
-//#define INTERRUPT_BOTH ("both")
-#define INTERRUPT_RISING ("rising")
+#define INTERRUPT_BOTH ("both")
+#define INTERRUPT_RISING "rising"
 
 struct button{
   int fd_k;
@@ -112,12 +112,12 @@ static int open_button(char* buttonNb)
 #ifndef INTERRUPT_BOTH
   sprintf(path,"%s%s/edge",GPIO_GPIO,buttonNb);
   f = open(path, O_WRONLY);
-  write(f, "INTERRUPT_RISING", strlen("INTERRUPT_RISING"));
+  write(f, INTERRUPT_RISING, strlen(INTERRUPT_RISING));
   close(f);
 #else
   sprintf(path, "%s%s/edge", GPIO_GPIO, buttonNb);
   f = open(path, O_WRONLY);
-  write(f, "INTERRUPT_BOTH", strlen("INTERRUPT_BOTH"));
+  write(f, INTERRUPT_BOTH, strlen(INTERRUPT_BOTH));
   close(f);
 #endif
   
@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
   myButtons[0].fd_k = open_button(K1);
   myButtons[1].fd_k = open_button(K2);
   myButtons[2].fd_k = open_button(K3);
+  int memFirst=0; // brico
   // int fd_k[3];
   // fd_k[0]= open_button(K1);
   // fd_k[1]= open_button(K2);
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
 
   // add to epoll event
   struct epoll_event events_ctl_timer;
-  events_ctl_timer.events=EPOLLIN | EPOLLET;
+  events_ctl_timer.events=EPOLLIN | EPOLLET ;
   events_ctl_timer.data.fd=timerfd; //to read after
   ret = epoll_ctl(epfd,EPOLL_CTL_ADD,timerfd,&events_ctl_timer);
   if (ret ==-1)
@@ -216,7 +217,27 @@ int main(int argc, char *argv[])
         (t2.tv_sec - t1.tv_sec) * 1000000000 + (t2.tv_nsec - t1.tv_nsec);
     */
     struct epoll_event events[NB_EPOLL_EVENT];
-    int nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1);
+    #ifndef INTERRUPT_BOTH
+      int nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1);
+    #else
+      int nr;
+      if(!activeButton){
+        nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1); // wait blocking
+      }else{
+        nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, 25);// wait with timout in ms
+        for(int i=0; i<nr;i++){
+          if(events[i].data.fd==timerfd){
+            continue;
+          }
+        }
+
+      }
+
+    #endif
+    if (!memFirst){
+      memFirst=1;
+      continue;
+    }
     if (nr == -1)
       perror("ERROR");
     for (int i=0; i<nr; i++) {
@@ -248,11 +269,38 @@ int main(int argc, char *argv[])
       for (int j=0; j<3;j++){
         if (events[i].data.fd == myButtons[j].fd_k && activeButton != 1)
         {
-          myButtons[j].state = 1;
+          myButtons[j].state =1;
+          break;
+        }
+        else if (events[i].data.fd == myButtons[j].fd_k && activeButton == 1)
+        {
+          myButtons[j].state =0;
+          activeButton=0;
           break;
         }
       }
-      if (activeButton){
+#endif
+
+      // manage timer
+      if (events[i].data.fd==timerfd){
+        if (toggle){
+          pwrite(led, "1", sizeof("1"), 0);
+          setTime_ns(p1,&new_value.it_value);
+          timerfd_settime(timerfd, 0, &new_value, NULL);
+        }
+          
+        else{
+          pwrite(led, "0", sizeof("0"), 0);
+          setTime_ns(p2,&new_value.it_value);
+          timerfd_settime(timerfd, 0, &new_value, NULL);
+        }
+          
+        toggle=!toggle;
+      }
+    }
+    #ifdef INTERRUPT_BOTH
+    // button kept pressed
+    if (activeButton){
         for (int j = 0; j < 3; j++)
         {
           if (myButtons[j].state == 1)
@@ -276,29 +324,11 @@ int main(int argc, char *argv[])
             }
             setDutyCycle(periodModif, duty, &p1, &p2);
             printf("Period= %fms\n", (double)periodModif / 1000000);
-            msleep(250);
+            //usleep(2500);
           }
         }
       }
 #endif
-
-      // manage timer
-      if (events[i].data.fd==timerfd){
-        if (toggle){
-          pwrite(led, "1", sizeof("1"), 0);
-          setTime_ns(p1,&new_value.it_value);
-          timerfd_settime(timerfd, 0, &new_value, NULL);
-        }
-          
-        else{
-          pwrite(led, "0", sizeof("0"), 0);
-          setTime_ns(p2,&new_value.it_value);
-          timerfd_settime(timerfd, 0, &new_value, NULL);
-        }
-          
-        toggle=!toggle;
-      }
-    }
 
     /*
     int toggle = ((k == 0) && (delta >= p1)) | ((k == 1) && (delta >= p2));
