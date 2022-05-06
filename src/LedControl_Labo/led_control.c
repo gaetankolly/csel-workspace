@@ -48,6 +48,13 @@
 #define K3 "3"
 #define NB_EPOLL_EVENT 4
 #define BUTTON_STEP 50000000 //ns
+//#define INTERRUPT_BOTH ("both")
+#define INTERRUPT_RISING ("rising")
+
+struct button{
+  int fd_k;
+  int state;
+};
 
 /*
  * init led 10, return fd /value
@@ -102,10 +109,17 @@ static int open_button(char* buttonNb)
   close(f);
 
   // config event, rising edge
+#ifndef INTERRUPT_BOTH
   sprintf(path,"%s%s/edge",GPIO_GPIO,buttonNb);
   f = open(path, O_WRONLY);
-  write(f, "rising", strlen("rising"));
+  write(f, "INTERRUPT_RISING", strlen("INTERRUPT_RISING"));
   close(f);
+#else
+  sprintf(path, "%s%s/edge", GPIO_GPIO, buttonNb);
+  f = open(path, O_WRONLY);
+  write(f, "INTERRUPT_BOTH", strlen("INTERRUPT_BOTH"));
+  close(f);
+#endif
   
   // open gpio value attribute
   sprintf(path,"%s%s/value",GPIO_GPIO,buttonNb);
@@ -144,10 +158,19 @@ int main(int argc, char *argv[])
   pwrite(led, "1", sizeof("1"), 0);
 
   // init button
-  int fd_k[3];
-  fd_k[0]= open_button(K1);
-  fd_k[1]= open_button(K2);
-  fd_k[2]= open_button(K3);
+  struct button myButtons[3];
+  myButtons[0].fd_k = open_button(K1);
+  myButtons[1].fd_k = open_button(K2);
+  myButtons[2].fd_k = open_button(K3);
+  // int fd_k[3];
+  // fd_k[0]= open_button(K1);
+  // fd_k[1]= open_button(K2);
+  // fd_k[2]= open_button(K3);
+#ifndef INTERRUPT_BOTH
+#else
+  int activeButton = 0;
+#endif
+  
 
   // init epoll
   int epfd = epoll_create1(0);
@@ -157,8 +180,8 @@ int main(int argc, char *argv[])
   struct epoll_event events_ctl_button[3];
   for(int i=0; i<3;i++){
     events_ctl_button[i].events=EPOLLET;
-    events_ctl_button[i].data.fd=fd_k[i]; //to read after
-    int ret = epoll_ctl(epfd,EPOLL_CTL_ADD,fd_k[i],&(events_ctl_button[i]));
+    events_ctl_button[i].data.fd = myButtons[i].fd_k; // to read after
+    int ret = epoll_ctl(epfd, EPOLL_CTL_ADD, myButtons[i].fd_k, &(events_ctl_button[i]));
     if (ret ==-1)
       perror("ERROR");
   }
@@ -199,8 +222,10 @@ int main(int argc, char *argv[])
     for (int i=0; i<nr; i++) {
       //printf ("event=%d on fd=%d\n", events[i].events, events[i].data.fd);
       // manage buttons
+#ifndef INTERRUPT_BOTH
       for (int j=0; j<3;j++){
-        if (events[i].data.fd==fd_k[j]){
+        if (events[i].data.fd == myButtons[j].fd_k)
+        {
           //printf("Button: %d\n",j+1);
           if(j==0){
             periodModif+=BUTTON_STEP;
@@ -217,8 +242,46 @@ int main(int argc, char *argv[])
           setDutyCycle(periodModif,duty,&p1, &p2);
           printf("Period= %fms\n",(double)periodModif/1000000);
         }
-          
       }
+#else
+      activeButton = myButtons[0].state | myButtons[1].state | myButtons[2].state;
+      for (int j=0; j<3;j++){
+        if (events[i].data.fd == myButtons[j].fd_k && activeButton != 1)
+        {
+          myButtons[j].state = 1;
+          break;
+        }
+      }
+      if (activeButton){
+        for (int j = 0; j < 3; j++)
+        {
+          if (myButtons[j].state == 1)
+          {
+            // printf("Button: %d\n",j+1);
+            if (j == 0)
+            {
+              periodModif += BUTTON_STEP;
+            }
+            else if (j == 1)
+            {
+              periodModif = period;
+            }
+            else if (j == 2)
+            {
+              periodModif -= BUTTON_STEP;
+              if (periodModif < BUTTON_STEP)
+              {
+                periodModif = BUTTON_STEP;
+              }
+            }
+            setDutyCycle(periodModif, duty, &p1, &p2);
+            printf("Period= %fms\n", (double)periodModif / 1000000);
+            msleep(250);
+          }
+        }
+      }
+#endif
+
       // manage timer
       if (events[i].data.fd==timerfd){
         if (toggle){
