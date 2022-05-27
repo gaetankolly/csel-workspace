@@ -48,10 +48,8 @@
 #define K3 "3"
 #define NB_EPOLL_EVENT 4
 #define BUTTON_STEP 50000000 //ns
-#define INTERRUPT_RISING "rising"
 #define INTERRUPT_BOTH ("both")
-#define UPDATE_TIME (500) //ms
-
+#define INTERRUPT_RISING "rising"
 
 struct button{
   int fd_k;
@@ -195,16 +193,14 @@ int main(int argc, char *argv[])
   int timerfd = timerfd_create(CLOCK_MONOTONIC, 0); 
   struct itimerspec new_value;
   setTime_ns(p1,&new_value.it_value);
-  //setTime_ns(p1,&new_value.it_interval); 
+  //setTime_ns(1000000000,&new_value.it_interval); // doesnt work... why?
   int ret=timerfd_settime(timerfd, 0, &new_value, NULL);
   if (ret ==-1)
       perror("ERROR");
 
-
-
   // add to epoll event
   struct epoll_event events_ctl_timer;
-  events_ctl_timer.events=EPOLLIN  ;
+  events_ctl_timer.events=EPOLLIN | EPOLLET ;
   events_ctl_timer.data.fd=timerfd; //to read after
   ret = epoll_ctl(epfd,EPOLL_CTL_ADD,timerfd,&events_ctl_timer);
   if (ret ==-1)
@@ -221,17 +217,23 @@ int main(int argc, char *argv[])
         (t2.tv_sec - t1.tv_sec) * 1000000000 + (t2.tv_nsec - t1.tv_nsec);
     */
     struct epoll_event events[NB_EPOLL_EVENT];
-#ifndef INTERRUPT_BOTH
-    int nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1);
-#else
+    #ifndef INTERRUPT_BOTH
+      int nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1);
+    #else
       int nr;
-      int doNotUpdate=0;
       if(!activeButton){
         nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, -1); // wait blocking
       }else{
-        nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, UPDATE_TIME);// wait with timout in ms
+        nr = epoll_wait(epfd, events, NB_EPOLL_EVENT, 25);// wait with timout in ms
+        for(int i=0; i<nr;i++){
+          if(events[i].data.fd==timerfd){
+            continue;
+          }
+        }
+
       }
-#endif
+
+    #endif
     if (!memFirst){
       memFirst=1;
       continue;
@@ -263,20 +265,22 @@ int main(int argc, char *argv[])
         }
       }
 #else
+      activeButton = myButtons[0].state | myButtons[1].state | myButtons[2].state;
       for (int j=0; j<3;j++){
-        // update state of the button
-        if (events[i].data.fd == myButtons[j].fd_k)
+        if (events[i].data.fd == myButtons[j].fd_k && activeButton != 1)
         {
-          // toogle state of the button
-          myButtons[j].state =!myButtons[j].state;
-          //printf("%d-> %d\n",j,myButtons[j].state);
+          myButtons[j].state =1;
+          break;
+        }
+        else if (events[i].data.fd == myButtons[j].fd_k && activeButton == 1)
+        {
+          myButtons[j].state =0;
+          activeButton=0;
+          break;
         }
       }
-      // do not update when the event is from the timer
-      if (events[i].data.fd==timerfd){
-        doNotUpdate=1;
-      }
 #endif
+
       // manage timer
       if (events[i].data.fd==timerfd){
         if (toggle){
@@ -294,32 +298,37 @@ int main(int argc, char *argv[])
         toggle=!toggle;
       }
     }
-#ifdef INTERRUPT_BOTH
-  activeButton=0; // reinit active button
-  for(int i=0;i<3;i++){
-    if (myButtons[i].state==1){
-      if (i == 0 && !doNotUpdate){
-        periodModif += BUTTON_STEP;
-      }
-      else if (i == 1 && !doNotUpdate){
-        periodModif = period;
-      }
-      else if (i == 2 && !doNotUpdate){
-        periodModif -= BUTTON_STEP;
-        if (periodModif < BUTTON_STEP)
+    #ifdef INTERRUPT_BOTH
+    // button kept pressed
+    if (activeButton){
+        for (int j = 0; j < 3; j++)
         {
-          periodModif = BUTTON_STEP;
+          if (myButtons[j].state == 1)
+          {
+            // printf("Button: %d\n",j+1);
+            if (j == 0)
+            {
+              periodModif += BUTTON_STEP;
+            }
+            else if (j == 1)
+            {
+              periodModif = period;
+            }
+            else if (j == 2)
+            {
+              periodModif -= BUTTON_STEP;
+              if (periodModif < BUTTON_STEP)
+              {
+                periodModif = BUTTON_STEP;
+              }
+            }
+            setDutyCycle(periodModif, duty, &p1, &p2);
+            printf("Period= %fms\n", (double)periodModif / 1000000);
+            //usleep(2500);
+          }
         }
       }
-    }
-    activeButton |= myButtons[i].state;
-  }
-      
-  if(activeButton &&!doNotUpdate){
-    setDutyCycle(periodModif,duty,&p1, &p2);
-    printf("Period= %fms\n",(double)periodModif/1000000);
-  }
-#endif  
+#endif
 
     /*
     int toggle = ((k == 0) && (delta >= p1)) | ((k == 1) && (delta >= p2));
