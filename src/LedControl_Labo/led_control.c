@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
+#include <syslog.h>
 
 /*
  * status led - gpioa.10 --> gpio10
@@ -140,6 +141,13 @@ void setDutyCycle(long period,int duty,long* p1, long* p2){
   // compute duty period...
   *p1 = period / 100 * duty;
   *p2 = period - *p1;
+}
+
+void log_mess(long period){
+  openlog(NULL,LOG_CONS,LOG_USER);
+  syslog( LOG_INFO, "Period= %fms\n",(double)period/1000000);
+  closelog(); 
+  printf("Period= %fms\n",(double)period/1000000);
 }
 
 int main(int argc, char *argv[])
@@ -259,7 +267,8 @@ int main(int argc, char *argv[])
             }
           }
           setDutyCycle(periodModif,duty,&p1, &p2);
-          printf("Period= %fms\n",(double)periodModif/1000000);
+          log_mess(periodModif);
+          //printf("Period= %fms\n",(double)periodModif/1000000);
         }
       }
 #else
@@ -317,7 +326,8 @@ int main(int argc, char *argv[])
       
   if(activeButton &&!doNotUpdate){
     setDutyCycle(periodModif,duty,&p1, &p2);
-    printf("Period= %fms\n",(double)periodModif/1000000);
+    log_mess(periodModif);
+    //printf("Period= %fms\n",(double)periodModif/1000000);
   }
 #endif  
 
