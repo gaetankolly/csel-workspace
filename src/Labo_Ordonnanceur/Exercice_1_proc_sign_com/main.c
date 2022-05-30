@@ -32,14 +32,51 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/epoll.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sched.h>
+
 
 
 #define MAX_BYTE_NUMBER 30
 #define CMD_EXIT "exit\n"
 
+/*
+* handler signals
+*/
+static void catch_signal(int signal)
+{
+    printf("signal %d ignored\n", signal);
+}
+/*
+* attach handler to signals
+*/
+static void install_catch_signal()
+{
+    struct sigaction act = {
+        .sa_handler = catch_signal,
+    };
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGHUP, &act, NULL);   //  1 - hangup
+    sigaction(SIGINT, &act, NULL);   //  2 - terminal interrupt
+    sigaction(SIGQUIT, &act, NULL);  //  3 - terminal quit
+    sigaction(SIGABRT, &act, NULL);  //  6 - abort
+    sigaction(SIGTERM, &act, NULL);  // 15 - termination
+    sigaction(SIGTSTP, &act, NULL);  // 19 - terminal stop signal
+}
 
-
+/*
+* code run by the parent processs
+*/
 int fct_parent(int fd_socketpair){
+  // conf CPU
+  cpu_set_t set;
+  CPU_SET(0, &set);
+  if (sched_setaffinity(0, sizeof(cpu_set_t),&set)<0){
+    perror("ERROR set affinity");
+  }
+
   char readData[MAX_BYTE_NUMBER];
   int stop=0;
   // init epoll
@@ -79,8 +116,16 @@ int fct_parent(int fd_socketpair){
   }
   return 0;
 }
-
+/*
+* code run by the child processs
+*/
 int fct_child(int fd_socketpair){
+
+  cpu_set_t set;
+  CPU_SET(1, &set);
+  if (sched_setaffinity(0, sizeof(cpu_set_t),&set)<0){
+    perror("ERROR set affinity");
+  }
 
   char writeData[MAX_BYTE_NUMBER];
   int stop =0;
@@ -101,8 +146,25 @@ int fct_child(int fd_socketpair){
 
 int main()
 {
+  // install handler to signal
+  install_catch_signal();
+
+  // redirect error pip
+  int fd_errorlog=open("error.log", O_WRONLY | O_APPEND | O_CREAT, 0644);
+  if(fd_errorlog<0){
+    perror("Error opening log file");
+  }
+  // duplicate fd_errorlog to to stderr
+  if (dup2(fd_errorlog, STDERR_FILENO) != STDERR_FILENO) { 
+    perror("Error duplicating log file");
+  }
+
+  // test error
+  perror("ERROR TEST");
+
   // Create socketpair
   int fd_socketpair[2];
+
   /* 
   * int socketpair (int domain, int type, int protocol, int fd[2]);
   * domain: AF_UNIX, local communication
@@ -113,6 +175,10 @@ int main()
     return -1;
   }
 
+  // clear CPU configuration
+  cpu_set_t set;
+  CPU_ZERO(&set);
+
   // forking
   pid_t pid = fork();
   if (pid == 0){
@@ -120,8 +186,7 @@ int main()
     close(fd_socketpair[0]);
     fct_child(fd_socketpair[1]);
     exit(0);
-  }
-    
+  } 
   else if (pid > 0){
     // parent
     close(fd_socketpair[1]);
