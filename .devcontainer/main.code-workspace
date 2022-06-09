@@ -31,7 +31,11 @@
 	"settings": {
 		"files.associations": {
 			"stdint.h": "c",
-			"module.h": "c"
+			"module.h": "c",
+			"constant.h": "c",
+			"daemoncore.h": "c",
+			"sstream": "c",
+			"regex": "c"
 		}
 	},
 	"extensions": {

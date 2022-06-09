@@ -1,4 +1,4 @@
-EXEC=oleds
+EXEC=deamon
 DTB = mydt.dtb
 SRCS=$(wildcard *.c)
 
