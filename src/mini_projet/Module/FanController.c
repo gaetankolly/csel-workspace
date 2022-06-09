@@ -206,14 +206,14 @@ int temp_thread(void *data){
         }
         else
         {
-          // Set pwmFreq based on temperature !!!!!!!!!!!!!!!TODO - CHECK TEMP values!!!!!!!!!!!!!!
-          if (temp < 35){
+          // Set pwmFreq based on temperature
+          if (temp < 35000){
             pwmFreq = 2;
           }
-          else if (temp < 40){
+          else if (temp < 40000){
             pwmFreq = 5;
           }
-          else if (temp < 45){
+          else if (temp < 45000){
             pwmFreq = 10;
           }
           else{
