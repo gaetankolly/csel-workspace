@@ -114,15 +114,15 @@ int open_button(const char* buttonNb)
 }
 
 
-void button_inc_freq_handler(void){
+void button_inc_freq_handler(int fd){
     printf("inc freq\n");
     incFreq();
 }
-void button_dec_freq_handler(void){
+void button_dec_freq_handler(int fd){
     printf("dec freq\n");
     decFreq();
 }
-void button_switch_mode_handler(void){
+void button_switch_mode_handler(int fd){
     printf("switch mode\n");
     switchMode();
 }

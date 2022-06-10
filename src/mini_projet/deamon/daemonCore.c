@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
 #include "oledControl.h"
 
@@ -93,7 +95,9 @@ void decFreq(){
     if(freq<=1){
         freq=0;
     }
-    freq--;
+    else{
+        freq--;
+    }
     setFreq(freq);
     displayFreq(freq);
 }

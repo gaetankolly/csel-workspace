@@ -31,6 +31,7 @@
 #include "oledControl.h"
 #include "gpio.h"
 #include "daemonCore.h"
+#include "socket.h"
 
 #define EPOLL_MAX_EVENT 10
 
@@ -50,18 +51,43 @@ int main()
     
     struct_epoll_elem inc_button; 
     inc_button.fd= open_button(K1);
-    inc_button.event.events=EPOLLET,
-    inc_button.event.data.ptr = &button_inc_freq_handler;
+    inc_button.event.events=EPOLLET;
+    struct_epoll_data data_inc_button={
+        .fd=inc_button.fd,
+        .handler =&button_inc_freq_handler
+    };
+    inc_button.event.data.ptr = &data_inc_button;
 
     struct_epoll_elem dec_button; 
     dec_button.fd= open_button(K2);
-    dec_button.event.events=EPOLLET,
-    dec_button.event.data.ptr = &button_dec_freq_handler;
-    
+    dec_button.event.events=EPOLLET;
+    struct_epoll_data data_dec_button={
+        .fd=dec_button.fd,
+        .handler =&button_dec_freq_handler
+    };
+    dec_button.event.data.ptr = &data_dec_button;
+
     struct_epoll_elem mode_button; 
     mode_button.fd= open_button(K3);
-    mode_button.event.events=EPOLLET,
-    mode_button.event.data.ptr = &button_switch_mode_handler;
+    mode_button.event.events=EPOLLET;
+    struct_epoll_data data_mode_button={
+        .fd=mode_button.fd,
+        .handler =&button_switch_mode_handler
+    };
+    mode_button.event.data.ptr = &data_mode_button;
+
+    /*
+    * init socket
+    */
+    struct_epoll_elem socket_ep; 
+    socket_ep.fd= create_socket();
+    socket_ep.event.events=EPOLLET|EPOLLIN;
+    struct_epoll_data data_socket={
+        .fd=socket_ep.fd,
+        .handler =&newConnection_handler
+    };
+    socket_ep.event.data.ptr = &data_socket;
+
 
     /*
     * Initialisation epoll
@@ -70,17 +96,19 @@ int main()
     
     // auto 
     struct_epoll_arr epoll_auto;
-    epoll_auto.nbInEpoll=1;     // dont forget to update number of element
+    epoll_auto.nbInEpoll=2;     // dont forget to update number of element
     epoll_auto.epoll_arr = (struct_epoll_elem*) malloc(sizeof(struct_epoll_elem)*epoll_auto.nbInEpoll);
     epoll_auto.epoll_arr[0]=mode_button;
+    epoll_auto.epoll_arr[1]=socket_ep;
 
     //manual
     struct_epoll_arr epoll_man;
-    epoll_man.nbInEpoll=3;     // dont forget to update number of element
+    epoll_man.nbInEpoll=4;     // dont forget to update number of element
     epoll_man.epoll_arr = (struct_epoll_elem*) malloc (sizeof(struct_epoll_elem)*epoll_man.nbInEpoll);
     epoll_man.epoll_arr[0]=mode_button;   
     epoll_man.epoll_arr[1]=inc_button;   
     epoll_man.epoll_arr[2]=dec_button;  
+    epoll_man.epoll_arr[3]=socket_ep;
 
     // give epoll ref
     setEpollPointer(epfd,&epoll_auto,&epoll_man);
@@ -94,9 +122,11 @@ int main()
 
         int nr = epoll_wait(epfd, events, EPOLL_MAX_EVENT, -1);
 
+        printf("event\n");
         for(int i=0;i<nr;i++){
-            void(*handler_fct)() = events[i].data.ptr;
-			handler_fct();
+            struct_epoll_data* epoll_data = (struct_epoll_data*) events[i].data.ptr;
+            void (*handler_fct)(int) = epoll_data->handler;
+			handler_fct(epoll_data->fd);
         }
     }
 

@@ -8,9 +8,9 @@
 
 int open_button(const char* buttonNb);
 
-void button_inc_freq_handler(void);
-void button_dec_freq_handler(void);
-void button_switch_mode_handler(void);
+void button_inc_freq_handler(int fd);
+void button_dec_freq_handler(int fd);
+void button_switch_mode_handler(int fd);
 
 
 #endif

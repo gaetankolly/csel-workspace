@@ -30,6 +30,12 @@ typedef struct epoll_arr{
     struct_epoll_elem* epoll_arr;
 }struct_epoll_arr;
 
+// epoll data
+typedef struct epoll_data_custom{
+    int fd;
+    void* handler;            //void (*handler)(int)
+}struct_epoll_data;
+
 void setEpollPointer(int epfd_,struct_epoll_arr* epoll_arr_auto_,struct_epoll_arr* epoll_arr_man_);
 void removeEpoll(ModeType mode, int epfd);
 void setEpoll(ModeType mode, int epfd);
