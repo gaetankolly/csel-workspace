@@ -32,10 +32,11 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include "daemonCore.h"
+#include "oledControl.h"
 
 #include "socket.h"
 
-#define SOCKET_PATH "/socketFile"
+#define SOCKET_PATH "/tmp/socketDaemon"
 #define MAX_BYTE_NUMBER 100
 
 //int fd_socket;
@@ -71,7 +72,7 @@ void newConnection_handler(int fd_socket){
         perror("Accept failed");
         return;
     }
-    printf("Connection accepted\n");
+    //printf("Connection accepted\n");
 
     char readData[MAX_BYTE_NUMBER]={0};
     int nb=read(conn_fd,readData,MAX_BYTE_NUMBER-1);
@@ -96,15 +97,61 @@ void close_socket(){
 }
 
 // user cmd
-int process_cmd(const char* cmd, char* answer){
-    if(strncmp(cmd,"SwitchMode",MAX_BYTE_NUMBER)==0){
+int process_cmd(const char* input, char* answer){
+
+    char cmd_tmp[MAX_BYTE_NUMBER]={0};
+    strncpy(cmd_tmp,input,MAX_BYTE_NUMBER-1);
+    char* cmd=strtok(cmd_tmp,";");
+    char* arg=strtok(NULL,";");
+
+    if(strncmp(cmd,"switchMode",MAX_BYTE_NUMBER)==0){
         switchMode();
         ModeType mode = getMode();
         if(mode==Auto){
-            strncpy(answer,"Mode is set manual",MAX_BYTE_NUMBER);
+            strncpy(answer,"Mode is set automatic",MAX_BYTE_NUMBER);
         }
         else{
             strncpy(answer,"Mode is set manual",MAX_BYTE_NUMBER);
+        }
+    }
+    else if(strncmp(cmd,"inc",MAX_BYTE_NUMBER)==0){
+        ModeType mode = getMode();
+        if(mode==Auto){
+            strncpy(answer,"Unable to inc in auto mode",MAX_BYTE_NUMBER);
+        }
+        else{
+            incFreq();
+            int freq=getFreq();
+            sprintf(answer,"Freq= %d",freq);
+        }
+    }
+    else if(strncmp(cmd,"dec",MAX_BYTE_NUMBER)==0){
+        ModeType mode = getMode();
+        if(mode==Auto){
+            strncpy(answer,"Unable to dec in auto mode",MAX_BYTE_NUMBER);
+        }
+        else{
+            decFreq();
+            int freq=getFreq();
+            sprintf(answer,"Freq= %d",freq);
+        }
+    }
+    else if(strncmp(cmd,"getFreq",MAX_BYTE_NUMBER)==0){
+        int freq = getFreq();
+        sprintf(answer,"Freq= %d",freq);
+    }
+    else if(strncmp(cmd,"setFreq",MAX_BYTE_NUMBER)==0){
+        printf("%s,%s",cmd,arg);
+        ModeType mode = getMode();
+        if(mode==Man){
+            int freq=atoi(arg);
+            setFreq(freq);
+            freq=getFreq();
+            sprintf(answer,"Freq= %d",freq);
+            displayFreq(freq);
+        }
+        else{
+            strncpy(answer,"Impossible to set freq",MAX_BYTE_NUMBER-1);
         }
     }
     else{

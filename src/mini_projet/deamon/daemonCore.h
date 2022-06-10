@@ -18,6 +18,14 @@ void setFreq(int freq);
 void incFreq();
 void decFreq();
 
+// sysfs
+int openTempSys();
+void tempSys_handler(int fd);
+int openFreqSys();
+void freqSys_handler(int fd);
+
+
+
 // epoll 
 typedef struct epoll_element{
     int fd;

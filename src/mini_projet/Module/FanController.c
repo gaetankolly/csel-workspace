@@ -64,12 +64,10 @@ ssize_t mode_store(struct device *dev, struct device_attribute *attr, const char
   }
 
   // Check if the mode is 1, if not set it to 0 (all values except for 1 will set automatic mode)
-  if (mode == 1){
-    mode = 1;
-  }
-  else{
+  if (mode != 1){
     mode = 0;
   }
+
   pr_info("Mode value changed to %d\n", mode);
   return count;
 }
@@ -194,18 +192,16 @@ int temp_thread(void *data){
     if (res != 0){
       pr_info("Wake-up, but no condition were true\n");
     }else{
-      // check if the system is in manual mode
-      if (!mode){
-        // restart temp timer
-        mod_timer(&temp_timer, jiffies + msecs_to_jiffies(TEMP_TIMER));
+      // restart temp timer
+      mod_timer(&temp_timer, jiffies + msecs_to_jiffies(TEMP_TIMER));
 
-        // Get CPU temperature
-        if (thermal_zone_get_temp(thermal_zone, &temp)){
-          pr_info("failed to get temp\n");
-          pr_info("mode value is %d\n", mode);
-        }
-        else
-        {
+      // Get CPU temperature
+      if (thermal_zone_get_temp(thermal_zone, &temp)){
+        pr_info("failed to get temp\n");
+      }
+      else{
+        // check if the system is in manual mode
+        if (mode==0){
           // Set pwmFreq based on temperature
           if (temp < 35000){
             pwmFreq = 2;
@@ -307,15 +303,21 @@ static int __init fan_controller_init(void)
 
 static void __exit fan_controller_exit(void)
 {
+  pr_info("Fan controller will be unloaded\n");
+  del_timer(&temp_timer);
+  del_timer(&pwm_timer);
+  
   // Stop threads
   kthread_stop(temp_task);
   kthread_stop(fan_management_task);
+  pr_info("Fan controller will be unloaded\n");
 
+  pr_info("Fan controller will be unloaded\n");
   gpio_free(GPIO_LED);
+  pr_info("Fan controller will be unloaded\n");
 
   // Unregister device
   platform_device_unregister(&fan_controller_device);
-
   pr_info("Fan controller module unloaded\n");
 }
 

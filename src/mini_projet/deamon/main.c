@@ -39,15 +39,14 @@
 int main()
 {
     /*
-    * Initialisation 
+    * Initialisation led
     */
     initOled();
 
     /*
     * Initialisation GPIO
     */
-    
-    //init_led();
+    init_led();
     
     struct_epoll_elem inc_button; 
     inc_button.fd= open_button(K1);
@@ -88,6 +87,26 @@ int main()
     };
     socket_ep.event.data.ptr = &data_socket;
 
+    /*
+    * sys fs
+    */
+    struct_epoll_elem sysTemp_ep; 
+    sysTemp_ep.fd=openTempSys();
+    sysTemp_ep.event.events=EPOLLIN;
+    struct_epoll_data data_sysTemp={
+        .fd=sysTemp_ep.fd,
+        .handler =&tempSys_handler
+    };
+    sysTemp_ep.event.data.ptr = &data_sysTemp;
+
+    struct_epoll_elem freqSys_ep; 
+    freqSys_ep.fd=openFreqSys();
+    freqSys_ep.event.events=EPOLLIN;
+    struct_epoll_data data_freqSys={
+        .fd=freqSys_ep.fd,
+        .handler =&freqSys_handler
+    };
+    freqSys_ep.event.data.ptr = &data_freqSys;
 
     /*
     * Initialisation epoll
@@ -96,23 +115,29 @@ int main()
     
     // auto 
     struct_epoll_arr epoll_auto;
-    epoll_auto.nbInEpoll=2;     // dont forget to update number of element
+    epoll_auto.nbInEpoll=4;     // dont forget to update number of element
     epoll_auto.epoll_arr = (struct_epoll_elem*) malloc(sizeof(struct_epoll_elem)*epoll_auto.nbInEpoll);
     epoll_auto.epoll_arr[0]=mode_button;
     epoll_auto.epoll_arr[1]=socket_ep;
+    epoll_auto.epoll_arr[2]=sysTemp_ep;
+    epoll_auto.epoll_arr[3]=freqSys_ep;
+    
 
     //manual
     struct_epoll_arr epoll_man;
-    epoll_man.nbInEpoll=4;     // dont forget to update number of element
+    epoll_man.nbInEpoll=5;     // dont forget to update number of element
     epoll_man.epoll_arr = (struct_epoll_elem*) malloc (sizeof(struct_epoll_elem)*epoll_man.nbInEpoll);
     epoll_man.epoll_arr[0]=mode_button;   
     epoll_man.epoll_arr[1]=inc_button;   
     epoll_man.epoll_arr[2]=dec_button;  
     epoll_man.epoll_arr[3]=socket_ep;
+    epoll_man.epoll_arr[4]=sysTemp_ep;
 
     // give epoll ref
     setEpollPointer(epfd,&epoll_auto,&epoll_man);
-    setEpoll(Auto,epfd);
+    ModeType mode=getMode();
+    setEpoll(mode,epfd);
+    displayMode(mode);
 
     /*
     * start app
@@ -122,7 +147,7 @@ int main()
 
         int nr = epoll_wait(epfd, events, EPOLL_MAX_EVENT, -1);
 
-        printf("event\n");
+        //printf("event\n");
         for(int i=0;i<nr;i++){
             struct_epoll_data* epoll_data = (struct_epoll_data*) events[i].data.ptr;
             void (*handler_fct)(int) = epoll_data->handler;

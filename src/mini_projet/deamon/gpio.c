@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "daemonCore.h"
 
@@ -39,7 +40,7 @@
 #define GPIO_UNEXPORT "/sys/class/gpio/unexport"
 #define GPIO_GPIO "/sys/class/gpio/gpio"
 #define INTERRUPT_RISING "rising"
-#define LED_POWER "10"
+#define LED_POWER "362"
 
 int fd_led;
 
@@ -68,8 +69,23 @@ int init_led()
     // open gpio value attribute
     sprintf(path,"%s%s/value",GPIO_GPIO,LED_POWER);
     fd_led = open(path, O_RDWR);
+    write(fd_led,"0",1);
 
     return 0;
+}
+
+void pulseLedPower(){
+  write(fd_led,"1",1);
+  struct timespec t1;
+  clock_gettime(CLOCK_MONOTONIC, &t1);
+  struct timespec t2;
+  long delta; 
+  do{
+    clock_gettime(CLOCK_MONOTONIC, &t2);
+    delta = (t2.tv_sec - t1.tv_sec) * 1000000000 + (t2.tv_nsec - t1.tv_nsec);
+  }while(delta<1000*1000*1);
+
+  write(fd_led,"0",1);
 }
 
 /*
@@ -115,15 +131,17 @@ int open_button(const char* buttonNb)
 
 
 void button_inc_freq_handler(int fd){
-    printf("inc freq\n");
+    //printf("inc freq\n");
     incFreq();
+    pulseLedPower();
 }
 void button_dec_freq_handler(int fd){
-    printf("dec freq\n");
+    //printf("dec freq\n");
     decFreq();
+    pulseLedPower();
 }
 void button_switch_mode_handler(int fd){
-    printf("switch mode\n");
+    //printf("switch mode\n");
     switchMode();
 }
 

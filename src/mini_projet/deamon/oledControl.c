@@ -83,7 +83,7 @@ void displayTemp(float temp){
 void displayFreq(int freq){
     ssd1306_set_position (0,4);
     char str[50];
-    sprintf(str,"Freq: %dHz",freq);
+    sprintf(str,"Freq: %dHz ",freq);
     str[MAX_DIPLAY_CHAR_LINE+1]=0;
     ssd1306_puts(str);
 }

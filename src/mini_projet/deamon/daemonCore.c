@@ -28,31 +28,69 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "oledControl.h"
 
 #include "daemonCore.h"
 
 #define EPOLL_MAX_EVENT 10
+#define PATH_SYS_TEMP "/sys/bus/platform/devices/FanControllerDriver/temp"
+#define PATH_SYS_FREQ "/sys/bus/platform/devices/FanControllerDriver/pwmFreq"
+#define PATH_SYS_MODE "/sys/bus/platform/devices/FanControllerDriver/mode"
+#define FREQ_MAX (20)
 
 
-ModeType mode=Auto;     // todo: don t store, read directy from sysfs
-int freq=1;             // todo: don t store, read directy from sysfs
+//ModeType mode=Auto;     // todo: don t store, read directy from sysfs
+//int freq=1;             // todo: don t store, read directy from sysfs
 
 struct_epoll_arr* epoll_arr_ptr[NUMBER_MODE];
 int epfd;
+
+int fd_sys_freq;
 
 /*
 * get/set Mode
 */
 ModeType getMode(){
-    //todo: sysfs
-
-    return mode;
+    char readData[10]={0};
+    int fd=open(PATH_SYS_MODE,O_RDONLY);
+    if(fd<0)
+        perror("error sys mode");
+    
+    int nb=read(fd,readData,9);
+    readData[nb]=0;
+    close(fd);
+    if(readData[0]=='0'){
+        return Auto;
+    }
+    else if(readData[0]=='1'){
+        return Man;
+    }
+    else{
+        perror("Error reading mode");
+        return Auto;
+    }
 }
-void setMode(ModeType mode_){
-    mode=mode_;
-    // todo sysfs
+void setMode(ModeType mode){
+    int fd=open(PATH_SYS_MODE,O_WRONLY);
+    if(fd<0)
+        perror("error sys mode");
+    
+    
+    if(mode == Auto){
+        write(fd,"0",1);
+    }
+    else if(mode== Man){
+        write(fd,"1",1);
+    }
+    else{
+        perror("you are stupid");
+    }
+    close(fd);
 }
 
 /*
@@ -68,21 +106,33 @@ void switchMode(){
 }
 
 int getFreq(){
-    // todo read in sysfs
+    char readData[10]={0};
+    lseek(fd_sys_freq,0,SEEK_SET);
+    int nb=read(fd_sys_freq,readData,9);
+    readData[nb]=0;
+    int freq=atoi(readData);
     return freq;
 }
 
-void setFreq(int freq_){
-    // todo sysfs
-    freq=freq_;
+void setFreq(int freq){
+    char writeData[20]={0};
+    snprintf(writeData,19,"%d",freq);  
+    lseek(fd_sys_freq,0,SEEK_SET);  
+    write(fd_sys_freq,writeData,20);
 }
+
 
 /*
 * increment actual freq
 */
 void incFreq(){
     int freq=getFreq();
-    freq++;
+    if(freq<FREQ_MAX){
+        freq++;
+    }
+    else{
+        freq=FREQ_MAX;
+    }
     setFreq(freq);
     displayFreq(freq);
 }
@@ -101,6 +151,45 @@ void decFreq(){
     setFreq(freq);
     displayFreq(freq);
 }
+
+/* 
+* SYS fs
+*/
+int openTempSys(){
+    int fd=open(PATH_SYS_TEMP, O_RDONLY);
+    if(fd<0){
+        perror("Error opening sys temp");
+    }
+
+    return fd;
+}
+
+void tempSys_handler(int fd){
+
+    char readData[10]={0};
+    lseek(fd,0,SEEK_SET);
+    int nb=read(fd,readData,9);
+    readData[nb]=0;
+    float temp=(float)atof(readData);
+    temp/=1000;
+    displayTemp(temp);
+}
+
+int openFreqSys(){
+    fd_sys_freq=open(PATH_SYS_FREQ, O_RDWR);
+    if(fd_sys_freq<0){
+        perror("Error opening sys Freq");
+    }
+
+    return fd_sys_freq;
+}
+
+void freqSys_handler(int fd){
+    int freq= getFreq();
+    displayFreq(freq);
+}
+
+
 
 /*
 * Manage epoll

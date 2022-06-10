@@ -31,7 +31,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define SOCKET_PATH "/socketFile"
+#define SOCKET_PATH "/tmp/socketDaemon"
 #define MAX_BYTE_NUMBER 100
 
 int main(int argc,char* argv[])
@@ -42,14 +42,24 @@ int main(int argc,char* argv[])
         printf("No commands entered\n");
         exit(EXIT_FAILURE);
     }
-    else if(argc>=2)
-    {
+    else if(argc==2){
         strncpy(writeData,argv[1],MAX_BYTE_NUMBER-1);
     }
-    else
+    else if(argc>2)
     {
-        printf("To many argument\n");
-        exit(EXIT_FAILURE);
+        strncpy(writeData,argv[1],MAX_BYTE_NUMBER-1);
+        if(strncmp(argv[1],"setFreq",strlen("setFreq"))==0){
+            if(strlen(argv[2])>10){
+                printf("Wrong cmd\n");
+                exit(EXIT_FAILURE);
+            }
+            strncat(writeData,";",MAX_BYTE_NUMBER-1);
+            strncat(writeData,argv[2],MAX_BYTE_NUMBER-1);
+        }
+        else{
+            printf("Wrong argument\n");
+            exit(EXIT_FAILURE);
+        }
     }
     
 
@@ -70,7 +80,7 @@ int main(int argc,char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    printf("success\n");
+    //printf("success\n");
 
     if(write(fdsocket,writeData,strlen(writeData))<(ssize_t)strlen(writeData)){
         perror("Error writing into socket\n");
