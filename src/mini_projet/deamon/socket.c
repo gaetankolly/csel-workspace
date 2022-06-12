@@ -31,6 +31,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <sys/time.h>
+
 #include "daemonCore.h"
 #include "oledControl.h"
 
@@ -49,6 +51,12 @@ int create_socket(){
         perror("Error socket");
     }
 
+    struct timeval tv={
+        .tv_sec=0,
+        .tv_usec=1000
+    };
+    setsockopt(fd_socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+
     memset(&name, 0, sizeof(name));
     name.sun_family = AF_UNIX;
     strncpy(name.sun_path, SOCKET_PATH, sizeof(name.sun_path) - 1);
@@ -56,6 +64,7 @@ int create_socket(){
     if (bind(fd_socket, (const struct sockaddr *) &name, sizeof(name))<0) {
         perror("Error binding");
     }
+
 
     if(listen(fd_socket, 2)<0){
         perror("Socket listen");
@@ -92,9 +101,6 @@ void newConnection_handler(int fd_socket){
     
 }
 
-void close_socket(){
-
-}
 
 // user cmd
 int process_cmd(const char* input, char* answer){
