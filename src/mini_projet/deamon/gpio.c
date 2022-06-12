@@ -83,7 +83,7 @@ void pulseLedPower(){
   do{
     clock_gettime(CLOCK_MONOTONIC, &t2);
     delta = (t2.tv_sec - t1.tv_sec) * 1000000000 + (t2.tv_nsec - t1.tv_nsec);
-  }while(delta<1000*1000*1);
+  }while(delta<1000*1000*5);
 
   write(fd_led,"0",1);
 }

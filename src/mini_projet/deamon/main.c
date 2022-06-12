@@ -144,10 +144,9 @@ int main()
     */
     while(1==1){
         struct epoll_event events[EPOLL_MAX_EVENT];
-
+        
         int nr = epoll_wait(epfd, events, EPOLL_MAX_EVENT, -1);
 
-        //printf("event\n");
         for(int i=0;i<nr;i++){
             struct_epoll_data* epoll_data = (struct_epoll_data*) events[i].data.ptr;
             void (*handler_fct)(int) = epoll_data->handler;
